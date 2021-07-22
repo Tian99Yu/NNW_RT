@@ -51,7 +51,7 @@
  */
 
 int dense_2_csr(float *h_dense, int num_rows, int num_cols, int **h_csr_offsets,
-                 int **h_csr_columns, float **h_csr_values)
+                 int **h_csr_columns, float **h_csr_values, int *nz)
 {
     //leading dimension (the offset)
     int ld = num_cols;
@@ -127,7 +127,7 @@ int dense_2_csr(float *h_dense, int num_rows, int num_cols, int **h_csr_offsets,
     CHECK_CUDA( cudaMemcpy(*h_csr_values, d_csr_values, nnz * sizeof(float),
                            cudaMemcpyDeviceToHost) )
 
-
+    *nz = (int)nnz;
 
     // device memory deallocation
     CHECK_CUDA( cudaFree(dBuffer) )
@@ -138,15 +138,18 @@ int dense_2_csr(float *h_dense, int num_rows, int num_cols, int **h_csr_offsets,
     return EXIT_SUCCESS;
 }
 
+// void csr_dense_mm()
+
 int main(){
     float A[] = {1.0f, 0.0f, 1.0f, 0.0f};
     int num_rows = 2;
     int num_cols = 2;
+    int nnz;
     int * csr_offsets;
     int * csr_columns;
     float * csr_values;
 
-    dense_2_csr(A, num_rows, num_cols, &csr_offsets, &csr_columns, &csr_values);
+    dense_2_csr(A, num_rows, num_cols, &csr_offsets, &csr_columns, &csr_values, &nnz);
     for(int i=0; i<2; i++){
         fprintf(stderr, "col: %d | val: %f \n",csr_columns[i], csr_values[i]);
     }
