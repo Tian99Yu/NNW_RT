@@ -14,7 +14,6 @@
 
 //TODO column / row majoyed order problem is not fixed
 
-
 #include <cuda_runtime_api.h> // cudaMalloc, cudaMemcpy, etc.
 #include <cusparse.h>         // cusparseSparseToDense
 #include <stdio.h>            // printf
@@ -154,8 +153,8 @@ int dense_2_csr(float *h_dense, int num_rows, int num_cols, int **h_csr_offsets,
  * @param hC_values 
  */
 void csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
-                  int *hA_csr_columns, float *hA_values, int B_num_rows, int B_num_cols,
-                  float * hC_values)
+                  int *hA_csr_columns, float *hA_csr_values, int B_num_rows, int B_num_cols,
+                  float *hB_values, float *hC_values)
 {
     float alpha = 1.0f;
     float beta = 0.0f;
@@ -163,38 +162,111 @@ void csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets
     int ldc = A_num_cols;
     //device memory
     int *dA_csr_offsets, *dA_csr_columns;
-    float* dA_csr_values, *dB_values, *dC_values;
+    float *dA_csr_values, *dB_values, *dC_values;
     //allocate A
-    CHECK_CUDA( cudaMalloc((void **) &dA_csr_offsets, (A_num_rows + 1) * sizeof(int)));
-    CHECK_CUDA( cudaMalloc((void **) &dA_csr_columns, A_nnz * sizeof(int)));
-    CHECK_CUDA( cudaMalloc( (void**) &dA_csr_values, A_nnz * sizeof(float)));
+    CHECK_CUDA(cudaMalloc((void **)&dA_csr_offsets, (A_num_rows + 1) * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void **)&dA_csr_columns, A_nnz * sizeof(int)));
+    CHECK_CUDA(cudaMalloc((void **)&dA_csr_values, A_nnz * sizeof(float)));
 
     //allocate B
-    CHECK_CUDA( cudaMalloc( (void**) &dB_values, sizeof(float) * B_num_rows * B_num_cols));
+    CHECK_CUDA(cudaMalloc((void **)&dB_values, sizeof(float) * B_num_rows * B_num_cols));
     //allocate C
-    CHECK_CUDA( cudaMalloc( (void**) &dC_values, sizeof(float) * A_num_rows * B_num_cols));
+    CHECK_CUDA(cudaMalloc((void **)&dC_values, sizeof(float) * A_num_rows * B_num_cols));
 
+    //to device mtx A
+    CHECK_CUDA(cudaMemcpy(dA_csr_offsets, hA_csr_offsets, (A_num_rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(dA_csr_columns, hA_csr_columns, (A_nnz + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(dA_csr_values, hA_csr_values, (A_nnz + 1) * sizeof(float), cudaMemcpyHostToDevice));
+    //to device mtx B
+    CHECK_CUDA(cudaMemcpy(dB_values, hB_values, (B_num_rows * B_num_cols) * sizeof(float), cudaMemcpyHostToDevice));
+    //to device mtx C
+    CHECK_CUDA(cudaMemcpy(dC_values, hC_values, (A_num_rows * B_num_cols) * sizeof(float), cudaMemcpyHostToDevice));
 
+    //create the matrices
+    cusparseHandle_t handle = NULL;
+    cusparseSpMatDescr_t matA;
+    cusparseDnMatDescr_t matB, matC;
+    size_t bufferSize = 0;
+    CHECK_CUSPARSE(cusparseCreateCsr(&matA, A_num_rows, A_num_cols, A_nnz,
+                                     dA_csr_offsets, dA_csr_columns, dA_csr_values, CUSPARSE_INDEX_32I,
+                                     CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_32F));
+
+    CHECK_CUSPARSE(cusparseCreateDnMat(&matB, B_num_rows, B_num_cols, ldb, dB_values,
+                                       CUDA_R_32F, CUSPARSE_ORDER_COL))
+    CHECK_CUSPARSE(cusparseCreateDnMat(&matC, A_num_rows, B_num_cols, ldc, dC_values,
+                                       CUDA_R_32F, CUSPARSE_ORDER_COL))
+
+    CHECK_CUSPARSE(cusparseSpMM_bufferSize(
+        handle,
+        CUSPARSE_OPERATION_NON_TRANSPOSE,
+        CUSPARSE_OPERATION_NON_TRANSPOSE,
+        &alpha, matA, matB, &beta, matC, CUDA_R_32F,
+        CUSPARSE_SPMM_ALG_DEFAULT, &bufferSize))
+
+    void *dBuffer = NULL;
+    CHECK_CUDA(cudaMalloc(&dBuffer, bufferSize));
+    CHECK_CUSPARSE(cusparseSpMM(handle,
+                                CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                &alpha, matA, matB, &beta, matC, CUDA_R_32F,
+                                CUSPARSE_SPMM_ALG_DEFAULT, dBuffer))
+
+    // destroy matrix/vector descriptors
+    CHECK_CUSPARSE(cusparseDestroySpMat(matA))
+    CHECK_CUSPARSE(cusparseDestroyDnMat(matB))
+    CHECK_CUSPARSE(cusparseDestroyDnMat(matC))
+    CHECK_CUSPARSE(cusparseDestroy(handle))
+
+    //copy the result to the host
+    CHECK_CUDA(cudaMemcpy(hC_values, dC_values, A_num_rows * B_num_cols * sizeof(float), cudaMemcpyDeviceToHost))
+
+    //device memory free
+    CHECK_CUDA(cudaFree(dBuffer))
+    CHECK_CUDA(cudaFree(dA_csrOffsets))
+    CHECK_CUDA(cudaFree(dA_columns))
+    CHECK_CUDA(cudaFree(dA_values))
+    CHECK_CUDA(cudaFree(dB))
+    CHECK_CUDA(cudaFree(dC))
+    return EXIT_SUCCESS;
 }
 
 int main()
 {
-    float A[] = {1.0f, 2.0f, 3.0f, 0.0f};
-    int num_rows = 2;
-    int num_cols = 2;
-    int nnz;
-    int *csr_offsets;
-    int *csr_columns;
-    float *csr_values;
+    /**
+     * A is 
+     * [1 2
+     *  3 0] 
+     * 
+     * B is
+     * [1 0
+     *  0 1]
+     */
 
-    dense_2_csr(A, num_rows, num_cols, &csr_offsets, &csr_columns, &csr_values, &nnz);
-    for (int i = 0; i < 3; i++)
-    {
-        fprintf(stderr, "col: %d | val: %f \n", csr_columns[i], csr_values[i]);
-    }
-    fprintf(stderr, "the offsets\n");
-    for (int i = 0; i < 4; i++)
-    {
-        fprintf(stderr, "%d\n", csr_offsets[i]);
-    }
+    
+    //Matrix A info
+    float A[] = {1.0f, 2.0f, 3.0f, 0.0f};
+    int A_num_rows = 2;
+    int A_num_cols = 2;
+    int A_nnz;
+    int *A_csr_offsets;
+    int *A_csr_columns;
+    float *A_csr_values;
+    //Matrix B info
+    float B[] = {1.0f, 0.0f, 0.0f, 1.0f};
+    int B_num_rows = 2;
+
+
+    dense_2_csr(A, A_num_rows, A_num_cols, &A_csr_offsets, &A_csr_columns, &A_csr_values, &A_nnz);
+    // //check the dense 2 csr function
+    // for (int i = 0; i < 3; i++)
+    // {
+    //     fprintf(stderr, "col: %d | val: %f \n", csr_columns[i], csr_values[i]);
+    // }
+    // fprintf(stderr, "the offsets\n");
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     fprintf(stderr, "%d\n", csr_offsets[i]);
+    // }
+
+    //check the csr dense matrix multiplication function
 }
