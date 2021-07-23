@@ -5,11 +5,14 @@ NVCC := /usr/local/cuda-11/bin/nvcc
 CUDA_TOOLKIT := /usr/local/cuda-11/
 NVCC_INC := -I/usr/local/cuda-11/include
 LIBS         := -lcudart -lcusparse
+CXX_FLAGS := -std=c++11 -g -O2
+
+
 all:
 	# g++ -shared -std=c++11 -fPIC `python -m pybind11 --includes` $(SRC) -o test`python3-config --extension-suffix`
-	nvcc -std=c++11 -O2 $(SRC) -shared -Xcompiler -fPIC $(INCLUDES) -o runtime_compare`python3-config --extension-suffix` -lcublas
+	nvcc $(CXX_FLAGS) $(SRC) -shared -Xcompiler -fPIC $(INCLUDES) -o runtime_compare`python3-config --extension-suffix` -lcublas
 cusparse:
-	${NVCC} ${NVCC_INC} cuSparse.c -o cuSparse_test.o ${LIBS}
+	${NVCC} ${NVCC_INC} $(CXX_FLAGS) cuSparse.c -o cuSparse_test.o ${LIBS}
 	./cuSparse_test.o
 clean:
 	rm *.so

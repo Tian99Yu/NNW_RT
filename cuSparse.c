@@ -175,8 +175,8 @@ int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
 
     //to device mtx A
     CHECK_CUDA(cudaMemcpy(dA_csr_offsets, hA_csr_offsets, (A_num_rows + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(dA_csr_columns, hA_csr_columns, (A_nnz + 1) * sizeof(int), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(dA_csr_values, hA_csr_values, (A_nnz + 1) * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(dA_csr_columns, hA_csr_columns, A_nnz * sizeof(int), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(dA_csr_values, hA_csr_values, A_nnz * sizeof(float), cudaMemcpyHostToDevice));
     //to device mtx B
     CHECK_CUDA(cudaMemcpy(dB_values, hB_values, (B_num_rows * B_num_cols) * sizeof(float), cudaMemcpyHostToDevice));
     //to device mtx C
@@ -195,7 +195,7 @@ int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
                                        CUDA_R_32F, CUSPARSE_ORDER_COL))
     CHECK_CUSPARSE(cusparseCreateDnMat(&matC, A_num_rows, B_num_cols, ldc, dC_values,
                                        CUDA_R_32F, CUSPARSE_ORDER_COL))
-
+    CHECK_CUSPARSE( cusparseCreate(&handle) )
     CHECK_CUSPARSE(cusparseSpMM_bufferSize(
         handle,
         CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -222,11 +222,11 @@ int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
 
     //device memory free
     CHECK_CUDA(cudaFree(dBuffer))
-    CHECK_CUDA(cudaFree(dA_csrOffsets))
-    CHECK_CUDA(cudaFree(dA_columns))
-    CHECK_CUDA(cudaFree(dA_values))
-    CHECK_CUDA(cudaFree(dB))
-    CHECK_CUDA(cudaFree(dC))
+    CHECK_CUDA(cudaFree(dA_csr_offsets))
+    CHECK_CUDA(cudaFree(dA_csr_columns))
+    CHECK_CUDA(cudaFree(dA_csr_values))
+    CHECK_CUDA(cudaFree(dB_values))
+    CHECK_CUDA(cudaFree(dC_values))
     return EXIT_SUCCESS;
 }
 
@@ -256,7 +256,7 @@ int main()
     int B_num_rows = 2;
     int B_num_cols = 2;
     //the resulted C matrix
-    float *C_values[];
+    float *C_values;
 
     dense_2_csr(A_values, A_num_rows, A_num_cols, &A_csr_offsets, &A_csr_columns, &A_csr_values, &A_nnz);
     // //check the dense 2 csr function
@@ -272,9 +272,9 @@ int main()
 
     //check the csr dense matrix multiplication function
     csr_dense_mm(A_num_rows, A_num_cols, A_nnz, A_csr_offsets, A_csr_columns, A_csr_values, 
-    B_num_rows, B_num_columns, B_values, &C_values);
+    B_num_rows, B_num_cols, B_values, &C_values);
     fprintf(stderr, "printing matmul result\n");
-    for (itn i=0; i<4; i++){
+    for (int i=0; i<4; i++){
         fprintf(stderr, "%f\n", C_values[i]);
     }
 }
