@@ -216,10 +216,9 @@ int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
     CHECK_CUSPARSE(cusparseDestroyDnMat(matB))
     CHECK_CUSPARSE(cusparseDestroyDnMat(matC))
     CHECK_CUSPARSE(cusparseDestroy(handle))
-
+    *hC_values = malloc(A_num_rows * B_num_cols * sizeof(float));
     //copy the result to the host
     CHECK_CUDA(cudaMemcpy(*hC_values, dC_values, A_num_rows * B_num_cols * sizeof(float), cudaMemcpyDeviceToHost))
-
     //device memory free
     CHECK_CUDA(cudaFree(dBuffer))
     CHECK_CUDA(cudaFree(dA_csr_offsets))
