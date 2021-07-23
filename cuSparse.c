@@ -152,9 +152,9 @@ int dense_2_csr(float *h_dense, int num_rows, int num_cols, int **h_csr_offsets,
  * @param B_num_cols 
  * @param hC_values 
  */
-void csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
+int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
                   int *hA_csr_columns, float *hA_csr_values, int B_num_rows, int B_num_cols,
-                  float *hB_values, float *hC_values)
+                  float *hB_values, float **hC_values)
 {
     float alpha = 1.0f;
     float beta = 0.0f;
@@ -218,7 +218,7 @@ void csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets
     CHECK_CUSPARSE(cusparseDestroy(handle))
 
     //copy the result to the host
-    CHECK_CUDA(cudaMemcpy(hC_values, dC_values, A_num_rows * B_num_cols * sizeof(float), cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(*hC_values, dC_values, A_num_rows * B_num_cols * sizeof(float), cudaMemcpyDeviceToHost))
 
     //device memory free
     CHECK_CUDA(cudaFree(dBuffer))
@@ -244,7 +244,7 @@ int main()
 
     
     //Matrix A info
-    float A[] = {1.0f, 2.0f, 3.0f, 0.0f};
+    float A_values[] = {1.0f, 2.0f, 3.0f, 0.0f};
     int A_num_rows = 2;
     int A_num_cols = 2;
     int A_nnz;
@@ -252,11 +252,13 @@ int main()
     int *A_csr_columns;
     float *A_csr_values;
     //Matrix B info
-    float B[] = {1.0f, 0.0f, 0.0f, 1.0f};
+    float B_values[] = {1.0f, 0.0f, 0.0f, 1.0f};
     int B_num_rows = 2;
+    int B_num_cols = 2;
+    //the resulted C matrix
+    float *C_values[];
 
-
-    dense_2_csr(A, A_num_rows, A_num_cols, &A_csr_offsets, &A_csr_columns, &A_csr_values, &A_nnz);
+    dense_2_csr(A_values, A_num_rows, A_num_cols, &A_csr_offsets, &A_csr_columns, &A_csr_values, &A_nnz);
     // //check the dense 2 csr function
     // for (int i = 0; i < 3; i++)
     // {
@@ -269,4 +271,10 @@ int main()
     // }
 
     //check the csr dense matrix multiplication function
+    csr_dense_mm(A_num_rows, A_num_cols, A_nnz, A_csr_offsets, A_csr_columns, A_csr_values, 
+    B_num_rows, B_num_columns, B_values, &C_values);
+    fprintf(stderr, "printing matmul result\n");
+    for (itn i=0; i<4; i++){
+        fprintf(stderr, "%f\n", C_values[i]);
+    }
 }
