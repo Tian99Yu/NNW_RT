@@ -237,8 +237,8 @@ int main()
      *  3 0] 
      * 
      * B is
-     * [1 0
-     *  0 1]
+     * [1 1
+     *  1 1]
      */
 
     
@@ -251,7 +251,7 @@ int main()
     int *A_csr_columns;
     float *A_csr_values;
     //Matrix B info
-    float B_values[] = {1.0f, 0.0f, 0.0f, 1.0f};
+    float B_values[] = {1.0f, 1.0f, 1.0f, 1.0f};
     int B_num_rows = 2;
     int B_num_cols = 2;
     //the resulted C matrix
