@@ -23,6 +23,7 @@ namespace py = pybind11;
 
 
 float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array_t<float> arr_B) {
+// float test_cublas_sgemm(int m, int n, int k, float * arr_A, float * arr_B) {
 	//remember the mtx is col based!!!
 	//init the variables	
 	typedef std::chrono::high_resolution_clock Clock;
@@ -36,11 +37,14 @@ float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array
 #endif
 
 
-	//get the elements inside the numpy passed in array
+ 	// get the elements inside the numpy passed in array
 	py::buffer_info buf_A = arr_A.request();
 	py::buffer_info buf_B = arr_B.request();
 	A = (float *) buf_A.ptr;
 	B = (float *) buf_B.ptr;
+	
+	// A = arr_A;
+	// B = arr_B;
 
 	//cuda code
 	cublasHandle_t handle;
@@ -95,8 +99,10 @@ PYBIND11_MODULE(cpp_lib, m){
 }
 
 // int main(){
-// 	float m = n = k = 2.0;
+// 	float m = 2.0;
+// 	float n = 2.0;
+// 	float k = 2.0;
 // 	float arr_A[] = {1,2,3,4};
-// 	float arr_B[] = {1,0,1,0};
+// 	float arr_B[] = {1,0,0,1};
 // 	test_cublas_sgemm(m,n,k,arr_A, arr_B);	
 // }

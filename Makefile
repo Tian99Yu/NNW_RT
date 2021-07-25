@@ -5,7 +5,7 @@ INCLUDES := `python -m pybind11 --includes` -I $(CUDNN_PATH)/include
 NVCC := /usr/local/cuda-11/bin/nvcc
 CUDA_TOOLKIT := /usr/local/cuda-11/
 NVCC_INC := -I/usr/local/cuda-11/include
-LIBS         := -lcudart -lcusparse
+LIBS         := -lcudart -lcusparse -lcublas
 CXX_FLAGS := -std=c++11 -g -O2
 LIBRARY_DIR := cpp_lib.cu
 
@@ -26,4 +26,4 @@ cpp_lib:
 	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) $(LIBS) -o cpp_lib.o
 	./cpp_lib.o
 library:
-	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) -shared -Xcompiler -fPIC $(INCLUDES) -o cpp_lib`python3-config --extension-suffix` -lcublas
+	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) -shared -Xcompiler -fPIC $(INCLUDES) -o cpp_lib`python3-config --extension-suffix` $(LIBS)
