@@ -23,4 +23,4 @@ clean:
 	rm *.so
 	rm *.o
 library:
-	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) -shared -Xcompiler -fPIC $(INCLUDES) -o cpp_lib`python3-config --extension-suffix` -lcublas ${LIBS}
+	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) -shared -Xcompiler -fPIC $(INCLUDES) -o cpp_lib`python3-config --extension-suffix` -lcublas
