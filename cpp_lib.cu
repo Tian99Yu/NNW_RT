@@ -19,13 +19,22 @@ namespace py = pybind11;
         }                                                              \
     }
 
+#define DEBUG
+
+
 float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array_t<float> arr_B) {
 	//remember the mtx is col based!!!
 	//init the variables	
 	typedef std::chrono::high_resolution_clock Clock;
 	typedef std::chrono::milliseconds milliseconds;
-	float *A, *B, *C;
+	float *A, *B;
 	float *d_A, *d_B, *d_C;
+#ifdef DEBUG
+	//define the output variable C
+	float *C;
+	C =(float *) malloc(sizeof(float) * m * n);
+#endif
+
 
 	//get the elements inside the numpy passed in array
 	py::buffer_info buf_A = arr_A.request();
@@ -57,7 +66,7 @@ float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array
 
 #ifdef DEBUG
 	//copy the result back to host memory ofr latter printing
-	CHECK_CUDA(cudaMemcpy(d_C, C, sizeof(float) * m * n), cudaMemcpyDeviceToHost))
+	CHECK_CUDA(cudaMemcpy(C, d_C, sizeof(float) * m * n, cudaMemcpyDeviceToHost))
 #endif
 
 
@@ -73,7 +82,7 @@ float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array
 #ifdef DEBUG
 	fprintf(stderr, "printing the multiplication result col by col, matrix is %d X %d\n\n", m, n);
 	for (int i=0; i<m*n; i++){
-		fprintf(stderr, "%f \n", C[i])
+		fprintf(stderr, "%f \n", C[i]);
 	}
 #endif
 	return ms.count();
@@ -84,3 +93,10 @@ float test_cublas_sgemm(int m, int n, int k, py::array_t<float> arr_A, py::array
 PYBIND11_MODULE(cpp_lib, m){
 	m.def("cuBLAS", &test_cublas_sgemm, "the function returning the RT of cuBLAS");
 }
+
+// int main(){
+// 	float m = n = k = 2.0;
+// 	float arr_A[] = {1,2,3,4};
+// 	float arr_B[] = {1,0,1,0};
+// 	test_cublas_sgemm(m,n,k,arr_A, arr_B);	
+// }

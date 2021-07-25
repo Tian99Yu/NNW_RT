@@ -22,5 +22,8 @@ cusparse:
 clean:
 	rm *.so
 	rm *.o
+cpp_lib:
+	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) $(LIBS) -o cpp_lib.o
+	./cpp_lib.o
 library:
 	${NVCC} ${NVCC_INC} $(CXX_FLAGS) $(LIBRARY_DIR) -shared -Xcompiler -fPIC $(INCLUDES) -o cpp_lib`python3-config --extension-suffix` -lcublas
