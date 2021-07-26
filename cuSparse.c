@@ -158,8 +158,8 @@ int csr_dense_mm(int A_num_rows, int A_num_cols, int A_nnz, int *hA_csr_offsets,
 {
     float alpha = 1.0f;
     float beta = 0.0f;
-    int ldb = B_num_cols;
-    int ldc = A_num_cols;
+    int ldb = B_num_rows;
+    int ldc = A_num_rows;
     //device memory
     int *dA_csr_offsets, *dA_csr_columns;
     float *dA_csr_values, *dB_values, *dC_values;
@@ -251,7 +251,7 @@ int main()
     int *A_csr_columns;
     float *A_csr_values;
     //Matrix B info
-    float B_values[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float B_values[] = {1,3,4,7};
     int B_num_rows = 2;
     int B_num_cols = 2;
     //the resulted C matrix
