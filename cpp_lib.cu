@@ -31,7 +31,7 @@ namespace py = pybind11;
     }                                                                          \
 }
 
-#define DEBUG
+// #define DEBUG
 
 /**
  * @brief This function time the cuSparse sparse-dense matrix multiplication: A @ B where A is of
