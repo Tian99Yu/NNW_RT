@@ -6,13 +6,16 @@ import pandas as pd
 import tensorflow as tf
 import time
 from scipy.stats.mstats import gmean
+from tqdm import tqdm
 
+REPS = 10
 
-def tensorflow_runtime(A, B, reps=10):
+def tensorflow_runtime(A, B, reps=REPS):
 	"""
 	Given the sparse matrix A and dense matrix B return the runtime of the 
 	tf.sparse.sparse_dense_matmul function
 	"""
+	A = A.A
 	t_s_A = tf.sparse.from_dense(A)
 	times = []
 	for _ in range(reps):
@@ -22,27 +25,32 @@ def tensorflow_runtime(A, B, reps=10):
 		times.append(end - start)
 	return 1000.0 * gmean(times)
 
-# def cublas_runtime(A, B, reps=10):
-# 	"""
-# 	Given the sparse matrix A and dense matrix B return the runtime of the 
-# 	cublas code (cpp code binded in python)
-# 	"""
-# 	dense_time = []
-# 	sparse_A, A, B = gen_test_input(x,x,x,0.9)
-# 	for _ in range(reps):
-# 		dense_time.append(cuBLAS(x,x,x,A,B))
-
-
-
-def get_sparse_info(mtx, m, n):
+def cublas_runtime(A, B, reps=REPS):
 	"""
-	given a dense np array mtx (1d array with m*n as length)
-	where m, n is the row and col
-	Return the csr format data as a tuple: (value, col index, row ptr)  
+	Given the sparse matrix A and dense matrix B return the runtime of the 
+	cublas code (cpp code binded in python)
 	"""
+	A = A.A
+	m, k = A.shape
+	n = B.shape[1]
+	dense_time = []
+	for _ in range(reps):
+		dense_time.append(cuBLAS(m, n, k, A.reshape(-1),B.reshape(-1)))
+	return gmean(dense_time)
 
-	sparse_mtx = sparse.csr_matrix(mtx.reshape(m, n))
-	return sparse_mtx.data, sparse_mtx.indices, sparse_mtx.indptr, sparse_mtx.nnz
+def cusparse_runtime(A, B, reps=REPS):
+	"""
+	Given the sparse matrix A and dense matrix B return the runtime of the 
+	cusparse code (cpp code binded in python)
+	"""
+	sparse_A = A
+	m, k = A.A.shape
+	n = B.shape[1]
+	sparse_time = []
+	for _ in range(reps):
+		sparse_time.append(cuSPARSE(m,n,k, sparse_A.nnz, sparse_A.indptr, sparse_A.indices, sparse_A.data, B.flatten()))
+	return gmean(sparse_time)
+
 
 
 def gen_test_input(m,n,k,sparsity):
@@ -52,21 +60,23 @@ def gen_test_input(m,n,k,sparsity):
 	B is of shape (k, n)
 	"""
 	sparse_A = sparse.random(m, k, 1 - sparsity, format = 'csr', dtype=np.float32)
-	return sparse_A,sparse_A.A.reshape(-1), np.random.randn(k, n).reshape(-1).astype(np.float32)
+	B = np.random.randn(k, n).astype(np.float32)
+	return sparse_A, B
 
-def experiment():
+def experiment(sparsity = 0.9):
 	#first experiment: square mtx matmul
-	dense_time, sparse_time = [], []
-	for x in np.linspace(10, 1 << 13, num=10, dtype=np.int32):
-		sparse_A, A, B = gen_test_input(x,x,x,0.9)
-		dense_time.append(cuBLAS(x,x,x,A,B))
-		sparse_time.append(cuSPARSE(x,x,x, sparse_A.nnz, sparse_A.indptr, sparse_A.indices, sparse_A.data, B))
-	df = pd.DataFrame({"cuBLAS": dense_time, "cuSPARSE": sparse_time}, index=list(np.linspace(10, 1 << 13, num=10, dtype=np.int32)))
+	dense_time, sparse_time, tf_time = [], [], []
+	for x in tqdm(np.linspace(10, 1 << 11, num=10, dtype=np.int32), leave=False):
+		A, B = gen_test_input(x,x,x,sparsity) 
+		dense_time.append(cublas_runtime(A,B))
+		sparse_time.append(cusparse_runtime(A, B))
+		tf_time.append(tensorflow_runtime(A, B))
+	df = pd.DataFrame({"cuBLAS": dense_time, "cuSPARSE": sparse_time, "tensorflow": tf_time}, index=list(np.linspace(10, 1 << 13, num=10, dtype=np.int32)))
 	df.plot.line()	
-	plt.title("cuSparse -- cuBlas compare")
+	plt.title("cuSparse -- cuBlas compare | sparsity = {}".format(sparsity))
 	plt.xlabel("squared matrix dimension")
 	plt.ylabel("run time (ms)")
-	plt.savefig("blas_sparse.pdf")	
+	plt.savefig("plots/{}_sparsity.pdf".format(sparsity))	
 
 
 if __name__ == "__main__":
