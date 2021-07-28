@@ -1,3 +1,5 @@
 *.so
 *.o
+*.nvvp
+__pycache__/
 CUDALibrarySamples/
