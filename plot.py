@@ -66,7 +66,8 @@ def gen_test_input(m,n,k,sparsity):
 def experiment(sparsity = 0.9):
 	#first experiment: square mtx matmul
 	dense_time, sparse_time, tf_time = [], [], []
-	for x in tqdm(np.linspace(10, 1 << 11, num=10, dtype=np.int32), leave=False):
+	# for x in tqdm(np.linspace(10, 1 << 11, num=10, dtype=np.int32), leave=False):
+	for x in np.linspace(10, 1<<11, num=10, dtype=np.int32):
 		A, B = gen_test_input(x,x,x,sparsity) 
 		dense_time.append(cublas_runtime(A,B))
 		sparse_time.append(cusparse_runtime(A, B))
@@ -78,6 +79,9 @@ def experiment(sparsity = 0.9):
 	plt.ylabel("run time (ms)")
 	plt.savefig("plots/{}_sparsity.pdf".format(sparsity))	
 
+def plot():
+	for s in tqdm([0.9, 0.95, 0.99, 0.999], leave=False):
+		experiment(s)
 
 if __name__ == "__main__":
-	experiment()
+	plot()
