@@ -63,7 +63,7 @@ float test_cusparse_gemm(int m, int n, int k, int A_nnz, py::array_t<int> A_csr_
     int *dA_csr_offsets, *dA_csr_columns;
     float *dA_csr_values, *dB_values, *dC_values;
 	int A_num_rows = m;
-	int A_num_cols = n;
+	int A_num_cols = k;
 	int B_num_rows = k;
 	int B_num_cols = n;
 

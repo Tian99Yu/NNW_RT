@@ -1,3 +1,4 @@
+import math 
 import numpy as np
 from scipy import sparse
 from cpp_lib import *
@@ -63,7 +64,7 @@ def gen_test_input(m,n,k,sparsity):
 	B = np.random.randn(k, n).astype(np.float32)
 	return sparse_A, B
 
-def experiment(sparsity = 0.9):
+def experiment(sparsity=0.9):
 	#first experiment: square mtx matmul
 	dense_time, sparse_time, tf_time = [], [], []
 	# for x in tqdm(np.linspace(10, 1 << 11, num=10, dtype=np.int32), leave=False):
@@ -81,7 +82,27 @@ def experiment(sparsity = 0.9):
 
 def plot():
 	for s in tqdm([0.9, 0.95, 0.99, 0.999], leave=False):
-		experiment(s)
+		experiment(sparsity=s)
+		experiment_rec(sparsity=s)
+def experiment_rec(sparsity=0.9, ratio=0.1):
+	dense_time, sparse_time, tf_time = [], [], []
+	for x in np.linspace(math.ceil(2 / ratio), 1 << 12, num=10, dtype=np.int32):
+		A , B = gen_test_input(x, x, int(ratio * x), sparsity)
+		dense_time.append(cublas_runtime(A,B))
+		sparse_time.append(cusparse_runtime(A, B))
+		tf_time.append(tensorflow_runtime(A, B))
+	df = pd.DataFrame({"cuBLAS": dense_time, "cuSPARSE": sparse_time, "tensorflow": tf_time}, index=list(np.linspace(10, 1 << 13, num=10, dtype=np.int32)))
+	df.plot.line()	
+	plt.title("cuSparse -- cuBlas compare | sparsity = {}".format(sparsity))
+	plt.xlabel("matrix dimension, dimension m = n = {} X k".format(ratio))
+	plt.ylabel("run time (ms)")
+	plt.savefig("plots/{}_sparsity_rec.jpg".format(sparsity))	
+	df.to_csv("csv/rec_rt_{}.csv".format(sparsity))
+
+
+
 
 if __name__ == "__main__":
 	plot()
+	# experiment_rec()
+	
