@@ -13,8 +13,6 @@ all:
 	# g++ -shared -std=c++11 -fPIC `python -m pybind11 --includes` $(SRC) -o test`python3-config --extension-suffix`
 	nvcc $(CXX_FLAGS) $(SRC) -shared -Xcompiler -fPIC $(INCLUDES) -o runtime_compare`python3-config --extension-suffix` -lcublas
 
-shit:
-	g++ $(CXX_FLAGS) $(SHIT)  -shared -fPIC $(INCLUDES) -o shit`python3-config --extension-suffix`
 
 cusparse:
 	${NVCC} ${NVCC_INC} $(CXX_FLAGS) cuSparse.c -o cuSparse_test.o ${LIBS}
